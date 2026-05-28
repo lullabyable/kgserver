@@ -362,6 +362,21 @@ app.get('/login/check', async (req, res) => {
 app.use(async (req, res, next) => {
   if (req.path.startsWith('/login')) return next();
 
+  const accessToken = process.env.ACCESS_TOKEN;
+  const requestToken = req.query.token || req.headers['x-access-token'];
+
+  if (!accessToken) {
+    return res.status(500).json({ error: '服务器未配置 ACCESS_TOKEN' });
+  }
+
+  if (requestToken !== accessToken) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  // token 仅用于本代理鉴权，不转发给上游
+  const upstreamQuery = { ...req.query };
+  delete upstreamQuery.token;
+
   const targetUrl = `${UPSTREAM}${req.path}`;
 
   // 构建请求头
@@ -379,7 +394,7 @@ app.use(async (req, res, next) => {
       method: req.method,
       url: targetUrl,
       headers,
-      params: req.method === 'GET' ? req.query : undefined,
+      params: req.method === 'GET' ? upstreamQuery : undefined,
       data: req.method !== 'GET' ? req.body : undefined,
       responseType: 'stream',
       validateStatus: () => true,
@@ -415,5 +430,10 @@ app.listen(PORT, () => {
     console.log(`✅ 已登录，token: ${process.env.KUGOU_TOKEN.substring(0, 8)}...`);
   } else {
     console.log('⚠️  未登录，请访问 /login 扫码登录');
+  }
+  if (process.env.ACCESS_TOKEN) {
+    console.log(`🛡️  代理访问 token: ${process.env.ACCESS_TOKEN}`);
+  } else {
+    console.warn('⚠️  未配置 ACCESS_TOKEN，代理 API 将拒绝访问');
   }
 });
