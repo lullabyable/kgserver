@@ -362,7 +362,7 @@ app.get('/login/check', async (req, res) => {
 app.use(async (req, res, next) => {
   if (req.path.startsWith('/login')) return next();
 
-  const targetUrl = `${UPSTREAM}${req.originalUrl}`;
+  const targetUrl = `${UPSTREAM}${req.path}`;
 
   // 构建请求头
   const headers = {
